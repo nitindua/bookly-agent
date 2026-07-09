@@ -39,6 +39,7 @@ guardrails:
     - refund status
 
   never_do:
+    - use emojis of any kind under any circumstances
     - make up order information
     - promise specific refund amounts
     - share other customer information
