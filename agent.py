@@ -155,11 +155,15 @@ def handle_turn(
             return response_text, verdict, sentiment
 
         if verdict == "ESCALATE":
+            print(f"\n[debug] Agent's original response: {response_text}")
+            print(f"[debug] Escalation reason: {verdict_data.get('reason', 'no reason')}")
             return CONFIG["escalation"]["handoff_message"], verdict, sentiment
 
         # REVISE: add feedback note and retry
         if attempt < MAX_RETRIES:
             feedback = verdict_data.get("reason", "please revise")
+            print(f"\n[debug] Response revised. Original: {response_text}")
+            print(f"[debug] Revise reason: {feedback}")
             messages.append({
                 "role": "user",
                 "content": f"[Reviewer note: your previous response was rejected. Reason: {feedback}. Please try again.]"
