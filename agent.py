@@ -49,11 +49,17 @@ If a request is outside this scope, respond with:
 ## Available Actions
 {action_rules_str}
 
+## Policy Rules (These Are Real - Not Made Up)
+- Refunds for orders over $100 MUST be escalated to a human. This is company policy.
+- When a tool returns `escalate: true`, the refund was NOT processed. Do not claim otherwise.
+- When a tool returns `success: false`, the action failed. Do not claim it succeeded.
+
 ## Grounding Rules
 You MUST call an action before answering questions about:
 {must_use}
 
 Never guess or make up information. Always call the appropriate action first.
+Only claim an action succeeded if the tool response says `success: true`.
 
 ## Hard Rules - You Must NEVER:
 {never}
@@ -130,6 +136,18 @@ def get_agent_response(
     return text_response, tool_output, response.content
 
 
+def _tool_signaled_escalation(tool_output: str | None) -> bool:
+    """Check if the tool result marked this as needing escalation."""
+    if not tool_output:
+        return False
+    try:
+        import json as _json
+        data = _json.loads(tool_output)
+        return bool(data.get("escalate"))
+    except (ValueError, TypeError):
+        return False
+
+
 def handle_turn(
     user_input: str,
     messages: list,
@@ -145,6 +163,11 @@ def handle_turn(
         response_text, tool_output, content_blocks = get_agent_response(
             messages, system_prompt
         )
+
+        # Hard rule: if a tool signaled escalation, force it regardless of what agent said
+        if _tool_signaled_escalation(tool_output):
+            print(f"\n[debug] Tool signaled escalation. Forcing handoff.")
+            return CONFIG["escalation"]["handoff_message"], "ESCALATE", 0.5
 
         verdict_data = review_response(messages, response_text)
         verdict = verdict_data["verdict"]
