@@ -146,7 +146,7 @@ def handle_turn(
             messages, system_prompt
         )
 
-        verdict_data = review_response(user_input, tool_output, response_text)
+        verdict_data = review_response(messages, response_text)
         verdict = verdict_data["verdict"]
         sentiment = verdict_data.get("sentiment", 0.5)
 

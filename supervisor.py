@@ -9,17 +9,19 @@ MODEL = "claude-sonnet-5"
 
 SUPERVISOR_PROMPT = """You are a QA supervisor reviewing a customer support agent's response before it goes to the customer.
 
-Your job is to review the response and return a verdict.
+You will receive the full recent conversation between the customer and the agent, including any tool calls the agent made. Review the agent's most recent proposed response.
 
 ## Checks
-1. **Grounding**: Does the response only use information from the tool output? Or does it make things up?
+1. **Grounding**: Does the response only use information from tool outputs shown in the conversation? Or does it invent things not backed by any tool result?
+   - IMPORTANT: If a tool was called earlier in the conversation and returned data, the agent may reference that data. This is NOT hallucination.
 2. **Scope**: Does the response stay within Bookly support (orders, refunds)?
 3. **Sentiment**: How is the customer feeling? (0.0 = very frustrated, 1.0 = very satisfied)
+4. **Tone**: Does the response follow the tone rules (no emojis, no promises about specific outcomes, no long paragraphs)?
 
 ## Verdicts
 - APPROVED: response is safe to send
-- REVISE: response has issues, agent should try again
-- ESCALATE: hand off to human (sentiment too low, or repeated failures)
+- REVISE: response has real issues, agent should try again (do NOT use REVISE if the response is just terse or minimal, only if it's factually wrong, off-topic, or violates tone)
+- ESCALATE: hand off to human (only for repeated failures, explicit user request, or genuine emotional distress)
 
 ## Output Format
 Return ONLY valid JSON with this shape:
@@ -31,20 +33,50 @@ Return ONLY valid JSON with this shape:
 """
 
 
+def _format_conversation(messages: list) -> str:
+    """Turn the messages array into a readable transcript for the supervisor."""
+    lines = []
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"]
+
+        if isinstance(content, str):
+            lines.append(f"{role.upper()}: {content}")
+        elif isinstance(content, list):
+            for block in content:
+                # block can be a dict (tool_result) or an object with attributes
+                if isinstance(block, dict):
+                    block_type = block.get("type")
+                    if block_type == "tool_result":
+                        lines.append(f"TOOL_RESULT: {block.get('content', '')}")
+                    elif block_type == "text":
+                        lines.append(f"{role.upper()}: {block.get('text', '')}")
+                    elif block_type == "tool_use":
+                        lines.append(f"AGENT_TOOL_CALL: {block.get('name')}({block.get('input')})")
+                else:
+                    block_type = getattr(block, "type", None)
+                    if block_type == "text":
+                        lines.append(f"{role.upper()}: {getattr(block, 'text', '')}")
+                    elif block_type == "tool_use":
+                        lines.append(f"AGENT_TOOL_CALL: {block.name}({block.input})")
+    return "\n".join(lines)
+
+
 def review_response(
-    user_message: str,
-    tool_output: str | None,
+    conversation: list,
     agent_response: str,
 ) -> dict:
     """
-    Review the main agent's response.
+    Review the main agent's proposed response given the full recent conversation.
     Returns dict: {verdict, reason, sentiment}
     """
-    review_input = f"""User message: {user_message}
+    transcript = _format_conversation(conversation)
 
-Tool output (if any): {tool_output or "No tool was called"}
+    review_input = f"""## Conversation so far
+{transcript}
 
-Agent's proposed response: {agent_response}
+## Agent's proposed response
+{agent_response}
 
 Review this and return your verdict as JSON."""
 
@@ -60,9 +92,7 @@ Review this and return your verdict as JSON."""
         ""
     )
 
-    # Parse JSON verdict
     try:
-        # Strip markdown code fences if Claude wrapped the JSON
         cleaned = raw_text.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.split("```")[1]
@@ -72,8 +102,6 @@ Review this and return your verdict as JSON."""
 
         verdict = json.loads(cleaned)
     except (json.JSONDecodeError, IndexError):
-        # If supervisor output can't be parsed, default to approving
-        # (fail open - don't block the user because supervisor misformatted)
         return {
             "verdict": "APPROVED",
             "reason": "Supervisor output could not be parsed",
