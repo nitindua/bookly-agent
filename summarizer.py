@@ -103,7 +103,7 @@ Generate the handoff summary as JSON."""
 
 def print_summary(summary: dict) -> None:
     """Print a compact, clearly-system-output summary for the human agent."""
-    print("\n[system: agent handed off — summary for support team]\n")
+    print("\n[SYSTEM: AGENT HANDED OFF — SUMMARY FOR SUPPORT TEAM]\n")
     print(f"  customer  {summary.get('customer', 'unknown')}")
     print(f"  status    {summary.get('status', 'unknown')}")
     print(f"  next      {summary.get('next', 'review manually')}")
