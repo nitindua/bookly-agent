@@ -6,6 +6,13 @@ from agent import (
     handle_turn,
 )
 from summarizer import generate_escalation_summary
+from logger import (
+    new_session_id,
+    log_session_start,
+    log_user_message,
+    log_escalation,
+    log_summary,
+)
 
 st.set_page_config(
     page_title="Bookly Support",
@@ -39,6 +46,9 @@ if "system_prompt" not in st.session_state:
     st.session_state.system_prompt = build_system_prompt(CONFIG)
 if "pending_input" not in st.session_state:
     st.session_state.pending_input = None
+if "session_id" not in st.session_state:
+    st.session_state.session_id = new_session_id()
+    log_session_start(st.session_state.session_id)
 
 chat_col, monitor_col = st.columns([2, 1], gap="large")
 
@@ -52,6 +62,7 @@ with chat_col:
     if st.session_state.pending_input:
         user_input = st.session_state.pending_input
         st.session_state.pending_input = None
+        log_user_message(st.session_state.session_id, user_input)
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
@@ -59,10 +70,12 @@ with chat_col:
                     handoff = CONFIG["escalation"]["handoff_message"]
                     st.session_state.messages.append({"role": "user", "content": user_input})
                     st.session_state.display_messages.append({"role": "assistant", "content": handoff})
+                    log_escalation(st.session_state.session_id, "user requested a human agent (keyword)")
                     st.session_state.summary = generate_escalation_summary(
                         st.session_state.messages,
                         "user requested a human agent",
                     )
+                    log_summary(st.session_state.session_id, st.session_state.summary)
                     st.session_state.escalated = True
                     st.rerun()
 
@@ -70,6 +83,7 @@ with chat_col:
                     user_input,
                     st.session_state.messages,
                     st.session_state.system_prompt,
+                    st.session_state.session_id,
                 )
 
             st.markdown(response_text)
@@ -78,10 +92,12 @@ with chat_col:
         st.session_state.display_messages.append({"role": "assistant", "content": response_text})
 
         if verdict == "ESCALATE":
+            log_escalation(st.session_state.session_id, "supervisor or tool signaled escalation")
             st.session_state.summary = generate_escalation_summary(
                 st.session_state.messages,
                 "supervisor or tool signaled escalation",
             )
+            log_summary(st.session_state.session_id, st.session_state.summary)
             st.session_state.escalated = True
         st.rerun()
 
