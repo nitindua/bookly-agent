@@ -3,6 +3,7 @@ import anthropic
 from dotenv import load_dotenv
 from tools import TOOLS, run_tool
 from supervisor import review_response
+from summarizer import generate_escalation_summary, print_summary
 
 load_dotenv(override=True)
 
@@ -189,6 +190,12 @@ def handle_turn(
         verdict = verdict_data["verdict"]
         sentiment = verdict_data.get("sentiment", 0.5)
 
+        # If agent decided to hand off on its own (response contains the handoff message),
+        # treat this as an escalation regardless of what the supervisor said.
+        handoff_marker = CONFIG["escalation"]["handoff_message"][:40]
+        if handoff_marker in response_text:
+            return response_text, "ESCALATE", sentiment, agent_helped
+
         if verdict == "APPROVED":
             messages.append({"role": "assistant", "content": content_blocks})
             return response_text, verdict, sentiment, agent_helped
@@ -231,7 +238,10 @@ def main():
 
         # Fast path: keyword-based escalation
         if check_escalation_keywords(user_input):
+            messages.append({"role": "user", "content": user_input})
             print(f"\n{CONFIG['agent']['name']}: {CONFIG['escalation']['handoff_message']}\n")
+            summary = generate_escalation_summary(messages, "user requested a human agent")
+            print_summary(summary)
             break
 
         try:
@@ -242,6 +252,8 @@ def main():
             print(f"[debug] verdict={verdict} sentiment={sentiment:.2f} helped={agent_helped}\n")
 
             if verdict == "ESCALATE":
+                summary = generate_escalation_summary(messages, "supervisor or tool signaled escalation")
+                print_summary(summary)
                 break
 
             # Track consecutive frustrated turns - but reset if agent successfully helped
@@ -255,6 +267,8 @@ def main():
 
             if frustrated_turns >= frustrated_limit:
                 print(f"\n{CONFIG['agent']['name']}: {CONFIG['escalation']['handoff_message']}\n")
+                summary = generate_escalation_summary(messages, f"user showed frustration for {frustrated_turns} consecutive turns")
+                print_summary(summary)
                 break
 
         except Exception as e:
