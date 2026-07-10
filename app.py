@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit.components.v1 import html as st_html
 from agent import (
     CONFIG,
     build_system_prompt,
@@ -94,19 +93,6 @@ with chat_col:
             st.session_state.display_messages.append({"role": "user", "content": user_input})
             st.session_state.pending_input = user_input
             st.rerun()
-
-# Auto-focus the chat input and auto-scroll to the bottom after each rerun
-st_html("""
-<script>
-    setTimeout(function() {
-        const doc = window.parent.document;
-        const input = doc.querySelector('[data-testid="stChatInput"] textarea');
-        if (input) input.focus();
-        const main = doc.querySelector('section.main');
-        if (main) main.scrollTo({ top: main.scrollHeight, behavior: 'smooth' });
-    }, 150);
-</script>
-""", height=0)
 
 with monitor_col:
     st.subheader("Support View")
