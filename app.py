@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# Right-align user chat bubbles
+# UI polish: right-align user chat bubbles, vertical divider between columns
 st.markdown("""
 <style>
 [data-testid="stChatMessage"]:has(> div:first-child > [data-testid="stChatMessageAvatarUser"]) {
@@ -21,6 +21,10 @@ st.markdown("""
 }
 [data-testid="stChatMessage"]:has(> div:first-child > [data-testid="stChatMessageAvatarUser"]) > div:last-child {
     align-items: flex-end;
+}
+[data-testid="stHorizontalBlock"] > div:nth-child(2) {
+    border-left: 1px solid rgba(120, 120, 120, 0.2);
+    padding-left: 1.5rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -48,19 +52,16 @@ chat_col, monitor_col = st.columns([2, 1], gap="large")
 with chat_col:
     st.subheader("Bookly Support")
 
-    # Render all existing messages
     for msg in st.session_state.display_messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Process pending input from previous rerun (if any)
     if st.session_state.pending_input:
         user_input = st.session_state.pending_input
         st.session_state.pending_input = None
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                # Fast-path keyword escalation
                 if check_escalation_keywords(user_input):
                     handoff = CONFIG["escalation"]["handoff_message"]
                     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -91,46 +92,49 @@ with chat_col:
             st.session_state.escalated = True
         st.rerun()
 
-    # Input (disabled after escalation)
     if st.session_state.escalated:
         st.info("Conversation ended — handed off to support team.")
     else:
         user_input = st.chat_input("Type your message...")
         if user_input:
-            # Show user message immediately, defer processing to next rerun
             st.session_state.display_messages.append({"role": "user", "content": user_input})
             st.session_state.pending_input = user_input
             st.rerun()
 
 with monitor_col:
     st.subheader("Support View")
-    st.caption("Internal - not shown to customer")
+    st.caption("Internal — not shown to customer")
 
-    # Sentiment gauge
-    if st.session_state.sentiment is not None:
-        s = st.session_state.sentiment
-        if s >= 0.7:
-            label = "Positive"
-        elif s >= 0.5:
-            label = "Neutral"
-        elif s >= 0.3:
-            label = "Frustrated"
+    # Sentiment card
+    with st.container(border=True):
+        st.markdown("**Customer sentiment**")
+        if st.session_state.sentiment is not None:
+            s = st.session_state.sentiment
+            if s >= 0.7:
+                label = "Positive"
+            elif s >= 0.5:
+                label = "Neutral"
+            elif s >= 0.3:
+                label = "Frustrated"
+            else:
+                label = "Very frustrated"
+
+            col_num, col_label = st.columns([1, 1])
+            with col_num:
+                st.markdown(f"### {s:.2f}")
+            with col_label:
+                st.markdown(f"_{label}_")
+            st.progress(s)
         else:
-            label = "Very frustrated"
+            st.caption("Waiting for first message...")
 
-        st.metric("Customer sentiment", f"{s:.2f}", label)
-        st.progress(s)
-    else:
-        st.metric("Customer sentiment", "—", "waiting for first message")
-
-    st.divider()
-
-    # Escalation summary
-    st.markdown("**Handoff summary**")
-    if st.session_state.escalated and st.session_state.summary:
-        s = st.session_state.summary
-        st.markdown(f"**Customer:** {s.get('customer', 'unknown')}")
-        st.markdown(f"**Status:** {s.get('status', 'unknown')}")
-        st.markdown(f"**Next:** {s.get('next', 'review manually')}")
-    else:
-        st.caption("Will appear if conversation is escalated.")
+    # Handoff summary card
+    with st.container(border=True):
+        st.markdown("**Handoff summary**")
+        if st.session_state.escalated and st.session_state.summary:
+            s = st.session_state.summary
+            st.markdown(f"**Customer:** {s.get('customer', 'unknown')}")
+            st.markdown(f"**Status:** {s.get('status', 'unknown')}")
+            st.markdown(f"**Next:** {s.get('next', 'review manually')}")
+        else:
+            st.caption("Appears if conversation is escalated.")
