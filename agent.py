@@ -106,20 +106,22 @@ def get_agent_response(
 
     tool_output = None
 
-    # Tool use loop
+    # Tool use loop - handle parallel tool calls (Claude may return multiple tool_use blocks)
     while response.stop_reason == "tool_use":
-        tool_use_block = next(b for b in response.content if b.type == "tool_use")
-        tool_output = run_tool(tool_use_block.name, tool_use_block.input)
+        tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
 
         messages.append({"role": "assistant", "content": response.content})
-        messages.append({
-            "role": "user",
-            "content": [{
+
+        tool_results = []
+        for tool_use_block in tool_use_blocks:
+            tool_output = run_tool(tool_use_block.name, tool_use_block.input)
+            tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_block.id,
                 "content": tool_output,
-            }]
-        })
+            })
+
+        messages.append({"role": "user", "content": tool_results})
 
         response = client.messages.create(
             model=MODEL,
