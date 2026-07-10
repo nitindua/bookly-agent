@@ -12,16 +12,9 @@ st.set_page_config(
     layout="wide",
 )
 
-# UI polish: right-align user chat bubbles, vertical divider between columns
+# UI polish: subtle vertical divider between chat and support view
 st.markdown("""
 <style>
-[data-testid="stChatMessage"]:has(> div:first-child > [data-testid="stChatMessageAvatarUser"]) {
-    flex-direction: row-reverse;
-    text-align: right;
-}
-[data-testid="stChatMessage"]:has(> div:first-child > [data-testid="stChatMessageAvatarUser"]) > div:last-child {
-    align-items: flex-end;
-}
 [data-testid="stHorizontalBlock"] > div:nth-child(2) {
     border-left: 1px solid rgba(120, 120, 120, 0.2);
     padding-left: 1.5rem;
@@ -107,7 +100,6 @@ with monitor_col:
 
     # Sentiment card
     with st.container(border=True):
-        st.markdown("**Customer sentiment**")
         if st.session_state.sentiment is not None:
             s = st.session_state.sentiment
             if s >= 0.7:
@@ -119,22 +111,21 @@ with monitor_col:
             else:
                 label = "Very frustrated"
 
-            col_num, col_label = st.columns([1, 1])
-            with col_num:
-                st.markdown(f"### {s:.2f}")
-            with col_label:
-                st.markdown(f"_{label}_")
+            st.metric("Customer sentiment", f"{s:.2f}", label)
             st.progress(s)
         else:
-            st.caption("Waiting for first message...")
+            st.metric("Customer sentiment", "—", "waiting for first message")
 
     # Handoff summary card
     with st.container(border=True):
         st.markdown("**Handoff summary**")
         if st.session_state.escalated and st.session_state.summary:
             s = st.session_state.summary
-            st.markdown(f"**Customer:** {s.get('customer', 'unknown')}")
-            st.markdown(f"**Status:** {s.get('status', 'unknown')}")
-            st.markdown(f"**Next:** {s.get('next', 'review manually')}")
+            def _safe(text):
+                # Escape $ so Streamlit doesn't interpret it as LaTeX
+                return str(text).replace("$", "\\$")
+            st.markdown(f"**Customer:** {_safe(s.get('customer', 'unknown'))}")
+            st.markdown(f"**Status:** {_safe(s.get('status', 'unknown'))}")
+            st.markdown(f"**Next:** {_safe(s.get('next', 'review manually'))}")
         else:
             st.caption("Appears if conversation is escalated.")
