@@ -44,10 +44,11 @@ def handle_lookup_order(order_id: str) -> dict:
 
     if order_id in ORDERS:
         order = ORDERS[order_id]
+        # PII (customer_name, customer_email) is intentionally not returned.
+        # In production, PII should only be surfaced after identity verification.
         return {
             "success": True,
             "order_id": order_id,
-            "customer_name": order["customer_name"],
             "status": order["status"],
             "item": order["item"],
             "delivery_date": order["delivery_date"],

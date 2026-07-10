@@ -40,6 +40,7 @@ guardrails:
 
   never_do:
     - use emojis of any kind under any circumstances
+    - reveal or reference customer names, emails, or any personal information
     - make up order information
     - promise specific refund amounts
     - share other customer information
