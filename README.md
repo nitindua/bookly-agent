@@ -37,34 +37,31 @@ Built with config-driven behavior rules, forced tool grounding, a real-time supe
    ```
    Then edit `.env` and add your key.
 
-## Two Run Modes
+## How To Run
 
-### CLI Mode
-
-```
-python agent.py
-```
-
-Terminal-based text chat. Shows `[debug]` lines alongside the conversation so you can see what the agent is thinking (supervisor verdicts, sentiment scores, escalation reasons).
-
-Best for: quick testing, understanding the internals, screen recording a code-focused demo.
-
-### Streamlit Mode (Web UI)
+### Primary: Streamlit Web UI
 
 ```
 streamlit run app.py
 ```
 
-Two-panel web interface:
-- **Left panel (customer view):** clean chat interface, no debug
-- **Right panel (support view):** live sentiment gauge and handoff summary - internal only
+This is the intended way to experience the agent. Two-panel interface:
+- **Left panel (customer view):** clean chat, what the end user sees
+- **Right panel (support view):** live sentiment gauge and handoff summary - internal only, not visible to the customer
 
-Best for: showing the customer/agent split, product-focused demo.
+### Debug: CLI Mode
 
-### Both Modes
+```
+python agent.py
+```
 
+Terminal-based text chat. Shows `[debug]` lines alongside the conversation so you can see what the agent is thinking (supervisor verdicts, sentiment scores, escalation reasons). Useful for inspecting the internals during development or code review.
+
+### Under the Hood
+
+Both modes:
 - Use the same underlying agent, tools, supervisor, and summarizer
-- Write to the same `logs/session-{id}.log` file
+- Write structured events to `logs/session-{id}.log`
 - Enforce the same guardrails and escalation rules
 
 ## Design Principles
