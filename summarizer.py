@@ -91,7 +91,9 @@ Generate the handoff summary as JSON."""
             cleaned = cleaned.strip()
 
         return json.loads(cleaned)
-    except (json.JSONDecodeError, IndexError):
+    except (json.JSONDecodeError, IndexError) as e:
+        print(f"\n[debug] Summary parse failed: {e}")
+        print(f"[debug] Raw response: {raw_text[:500]}")
         return {
             "customer": "unable to parse summary",
             "status": f"escalated: {escalation_reason}. See transcript.",
