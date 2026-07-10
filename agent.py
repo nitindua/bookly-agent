@@ -148,14 +148,26 @@ def _tool_signaled_escalation(tool_output: str | None) -> bool:
         return False
 
 
+def _tool_call_succeeded(tool_output: str | None) -> bool:
+    """Check if a tool call in this turn returned success (agent helped the user)."""
+    if not tool_output:
+        return False
+    try:
+        import json as _json
+        data = _json.loads(tool_output)
+        return bool(data.get("success"))
+    except (ValueError, TypeError):
+        return False
+
+
 def handle_turn(
     user_input: str,
     messages: list,
     system_prompt: str,
-) -> tuple[str, str, float]:
+) -> tuple[str, str, float, bool]:
     """
     Handle one user turn: get agent response, run supervisor, retry if needed.
-    Returns: (final_response_text, final_verdict, sentiment)
+    Returns: (final_response_text, final_verdict, sentiment, agent_helped)
     """
     messages.append({"role": "user", "content": user_input})
 
@@ -167,7 +179,9 @@ def handle_turn(
         # Hard rule: if a tool signaled escalation, force it regardless of what agent said
         if _tool_signaled_escalation(tool_output):
             print(f"\n[debug] Tool signaled escalation. Forcing handoff.")
-            return CONFIG["escalation"]["handoff_message"], "ESCALATE", 0.5
+            return CONFIG["escalation"]["handoff_message"], "ESCALATE", 0.5, False
+
+        agent_helped = _tool_call_succeeded(tool_output)
 
         verdict_data = review_response(messages, response_text)
         verdict = verdict_data["verdict"]
@@ -175,12 +189,12 @@ def handle_turn(
 
         if verdict == "APPROVED":
             messages.append({"role": "assistant", "content": content_blocks})
-            return response_text, verdict, sentiment
+            return response_text, verdict, sentiment, agent_helped
 
         if verdict == "ESCALATE":
             print(f"\n[debug] Agent's original response: {response_text}")
             print(f"[debug] Escalation reason: {verdict_data.get('reason', 'no reason')}")
-            return CONFIG["escalation"]["handoff_message"], verdict, sentiment
+            return CONFIG["escalation"]["handoff_message"], verdict, sentiment, agent_helped
 
         # REVISE: add feedback note and retry
         if attempt < MAX_RETRIES:
@@ -193,7 +207,7 @@ def handle_turn(
             })
 
     # Retries exhausted
-    return CONFIG["escalation"]["handoff_message"], "ESCALATE", sentiment
+    return CONFIG["escalation"]["handoff_message"], "ESCALATE", sentiment, False
 
 
 def main():
@@ -219,20 +233,24 @@ def main():
             break
 
         try:
-            response_text, verdict, sentiment = handle_turn(
+            response_text, verdict, sentiment, agent_helped = handle_turn(
                 user_input, messages, system_prompt
             )
             print(f"\n{CONFIG['agent']['name']}: {response_text}\n")
-            print(f"[debug] verdict={verdict} sentiment={sentiment:.2f}\n")
+            print(f"[debug] verdict={verdict} sentiment={sentiment:.2f} helped={agent_helped}\n")
 
-            # Track consecutive frustrated turns
-            if sentiment < min_sentiment:
+            if verdict == "ESCALATE":
+                break
+
+            # Track consecutive frustrated turns - but reset if agent successfully helped
+            # (give the user a chance to react to a helpful response before escalating)
+            if agent_helped:
+                frustrated_turns = 0
+            elif sentiment < min_sentiment:
                 frustrated_turns += 1
             else:
                 frustrated_turns = 0
 
-            if verdict == "ESCALATE":
-                break
             if frustrated_turns >= frustrated_limit:
                 print(f"\n{CONFIG['agent']['name']}: {CONFIG['escalation']['handoff_message']}\n")
                 break
