@@ -4,50 +4,46 @@ An AI customer support agent prototype for a fictional online bookstore.
 
 ## What It Does
 
-Handles customer inquiries about:
-- Order status
-- Refund requests
-
-Built with config-driven behavior rules (Decagon-style AOPs), forced tool grounding, and escalation logic.
+Handles two support scenarios end-to-end:
+- **Order status** lookups
+- **Refund requests**, with escalation to a human agent for high-value orders or when the customer needs one
 
 ## Architecture
 
 | File | Responsibility |
 | --- | --- |
-| `agent.py` | Main chat loop, Claude API orchestration |
-| `tools.py` | Tool definitions and handlers |
-| `config.yaml` | Agent behavior rules (editable by non-engineers) |
-| `data.py` | Mock database (orders, refunds) |
+| `agent.py` | Main orchestration and Claude API calls |
+| `app.py` | Streamlit web UI |
+| `supervisor.py` | Reviews every agent response before it's sent |
+| `config.yaml` | Agent behavior rules (scope, tools, escalation, tone) |
 
 ## Setup
 
 1. Install dependencies:
-```
-pip install -r requirements.txt
-```
+   ```
+   pip install -r requirements.txt
+   ```
 
 2. Set your Anthropic API key:
-```
-cp .env.example .env
-```
-Then edit `.env` with your key.
-
-3. Export the key (or use a tool like `python-dotenv`):
-```
-export ANTHROPIC_API_KEY=your_key_here
-```
+   ```
+   cp .env.example .env
+   ```
+   Then edit `.env` and add your key.
 
 ## Run
 
+**Streamlit (recommended):**
+```
+streamlit run app.py
+```
+
+**CLI:**
 ```
 python agent.py
 ```
 
 ## Try These
 
-- "Where's my order?" → agent asks for order ID
-- "ORD-123" → agent looks up and responds
-- "I need a refund for ORD-456" → agent asks for reason
-- "It arrived damaged" → agent processes refund
-- "Refund ORD-789" → escalation (high value order)
-- "Let me talk to a human" → immediate escalation
+- "Where's my order?" → order lookup flow
+- "Refund ORD-789" → high-value escalation
+- "Let me talk to a human" → keyword escalation

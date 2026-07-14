@@ -25,6 +25,10 @@ build/
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs (session logs from the agent)
 *.log
 logs/
+!test-log.txt
+
+# Pitch deck preview (local only)
+pitch-deck.html

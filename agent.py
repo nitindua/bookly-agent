@@ -4,6 +4,18 @@ from dotenv import load_dotenv
 from tools import TOOLS, run_tool
 from supervisor import review_response
 from summarizer import generate_escalation_summary, print_summary
+from logger import (
+    new_session_id,
+    log_session_start,
+    log_session_end,
+    log_user_message,
+    log_agent_response,
+    log_tool_call,
+    log_tool_result,
+    log_supervisor,
+    log_escalation,
+    log_summary,
+)
 
 load_dotenv(override=True)
 
@@ -89,6 +101,7 @@ def check_escalation_keywords(user_message: str) -> bool:
 def get_agent_response(
     messages: list,
     system_prompt: str,
+    session_id: str | None = None,
 ) -> tuple[str, str | None, list]:
     """
     Send messages to Claude, handle tool use loop.
@@ -115,7 +128,11 @@ def get_agent_response(
 
         tool_results = []
         for tool_use_block in tool_use_blocks:
+            if session_id:
+                log_tool_call(session_id, tool_use_block.name, dict(tool_use_block.input))
             tool_output = run_tool(tool_use_block.name, tool_use_block.input)
+            if session_id:
+                log_tool_result(session_id, tool_use_block.name, tool_output)
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use_block.id,
@@ -167,6 +184,7 @@ def handle_turn(
     user_input: str,
     messages: list,
     system_prompt: str,
+    session_id: str | None = None,
 ) -> tuple[str, str, float, bool]:
     """
     Handle one user turn: get agent response, run supervisor, retry if needed.
@@ -176,7 +194,7 @@ def handle_turn(
 
     for attempt in range(MAX_RETRIES + 1):
         response_text, tool_output, content_blocks = get_agent_response(
-            messages, system_prompt
+            messages, system_prompt, session_id
         )
 
         # Hard rule: if a tool signaled escalation, force it regardless of what agent said
@@ -189,6 +207,8 @@ def handle_turn(
         verdict_data = review_response(messages, response_text)
         verdict = verdict_data["verdict"]
         sentiment = verdict_data.get("sentiment", 0.5)
+        if session_id:
+            log_supervisor(session_id, verdict, sentiment, verdict_data.get("reason", ""))
 
         # If agent decided to hand off on its own (response contains the handoff message),
         # treat this as an escalation regardless of what the supervisor said.
@@ -198,6 +218,8 @@ def handle_turn(
 
         if verdict == "APPROVED":
             messages.append({"role": "assistant", "content": content_blocks})
+            if session_id:
+                log_agent_response(session_id, response_text, agent_helped)
             return response_text, verdict, sentiment, agent_helped
 
         if verdict == "ESCALATE":
@@ -226,7 +248,11 @@ def main():
     min_sentiment = CONFIG["escalation"]["triggers"]["min_sentiment"]
     frustrated_limit = CONFIG["escalation"]["triggers"]["frustrated_response_limit"]
 
+    session_id = new_session_id()
+    log_session_start(session_id)
+
     print(f"\n{CONFIG['agent']['name']}: Hi! How can I help you today?\n")
+    print(f"[debug] Logging to logs/session-{session_id}.log\n")
 
     while True:
         user_input = input("You: ").strip()
@@ -234,26 +260,35 @@ def main():
             continue
         if user_input.lower() in ["quit", "exit", "bye"]:
             print(f"\n{CONFIG['agent']['name']}: Goodbye!\n")
+            log_session_end(session_id)
             break
+
+        log_user_message(session_id, user_input)
 
         # Fast path: keyword-based escalation
         if check_escalation_keywords(user_input):
             messages.append({"role": "user", "content": user_input})
             print(f"\n{CONFIG['agent']['name']}: {CONFIG['escalation']['handoff_message']}\n")
+            log_escalation(session_id, "user requested a human agent (keyword)")
             summary = generate_escalation_summary(messages, "user requested a human agent")
+            log_summary(session_id, summary)
             print_summary(summary)
+            log_session_end(session_id)
             break
 
         try:
             response_text, verdict, sentiment, agent_helped = handle_turn(
-                user_input, messages, system_prompt
+                user_input, messages, system_prompt, session_id
             )
             print(f"\n{CONFIG['agent']['name']}: {response_text}\n")
             print(f"[debug] verdict={verdict} sentiment={sentiment:.2f} helped={agent_helped}\n")
 
             if verdict == "ESCALATE":
+                log_escalation(session_id, "supervisor or tool signaled escalation")
                 summary = generate_escalation_summary(messages, "supervisor or tool signaled escalation")
+                log_summary(session_id, summary)
                 print_summary(summary)
+                log_session_end(session_id)
                 break
 
             # Track consecutive frustrated turns - but reset if agent successfully helped
@@ -267,12 +302,16 @@ def main():
 
             if frustrated_turns >= frustrated_limit:
                 print(f"\n{CONFIG['agent']['name']}: {CONFIG['escalation']['handoff_message']}\n")
+                log_escalation(session_id, f"user showed frustration for {frustrated_turns} consecutive turns")
                 summary = generate_escalation_summary(messages, f"user showed frustration for {frustrated_turns} consecutive turns")
+                log_summary(session_id, summary)
                 print_summary(summary)
+                log_session_end(session_id)
                 break
 
         except Exception as e:
             print(f"\nError: {e}\n")
+            log_session_end(session_id)
             break
 
 
