@@ -29,3 +29,6 @@ Thumbs.db
 *.log
 logs/
 !test-log.txt
+
+# Pitch deck preview (local only)
+pitch-deck.html
