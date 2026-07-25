@@ -19,6 +19,24 @@ st.set_page_config(
     layout="wide",
 )
 
+TYPING_HTML = """
+<div style="display: inline-flex; gap: 5px; padding: 4px 0; align-items: center;">
+  <div class="typing-dot"></div>
+  <div class="typing-dot"></div>
+  <div class="typing-dot"></div>
+</div>
+<style>
+.typing-dot { width: 7px; height: 7px; background: #808495; border-radius: 50%;
+              animation: typing-bounce 1.4s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-4px); }
+}
+</style>
+"""
+
 # UI polish: subtle vertical divider between chat and support view
 st.markdown("""
 <style>
@@ -65,28 +83,30 @@ with chat_col:
         log_user_message(st.session_state.session_id, user_input)
 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                if check_escalation_keywords(user_input):
-                    handoff = CONFIG["escalation"]["handoff_message"]
-                    st.session_state.messages.append({"role": "user", "content": user_input})
-                    st.session_state.display_messages.append({"role": "assistant", "content": handoff})
-                    log_escalation(st.session_state.session_id, "user requested a human agent (keyword)")
-                    st.session_state.summary = generate_escalation_summary(
-                        st.session_state.messages,
-                        "user requested a human agent",
-                    )
-                    log_summary(st.session_state.session_id, st.session_state.summary)
-                    st.session_state.escalated = True
-                    st.rerun()
+            placeholder = st.empty()
+            placeholder.markdown(TYPING_HTML, unsafe_allow_html=True)
 
-                response_text, verdict, sentiment, _ = handle_turn(
-                    user_input,
+            if check_escalation_keywords(user_input):
+                handoff = CONFIG["escalation"]["handoff_message"]
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                st.session_state.display_messages.append({"role": "assistant", "content": handoff})
+                log_escalation(st.session_state.session_id, "user requested a human agent (keyword)")
+                st.session_state.summary = generate_escalation_summary(
                     st.session_state.messages,
-                    st.session_state.system_prompt,
-                    st.session_state.session_id,
+                    "user requested a human agent",
                 )
+                log_summary(st.session_state.session_id, st.session_state.summary)
+                st.session_state.escalated = True
+                st.rerun()
 
-            st.markdown(response_text)
+            response_text, verdict, sentiment, _ = handle_turn(
+                user_input,
+                st.session_state.messages,
+                st.session_state.system_prompt,
+                st.session_state.session_id,
+            )
+
+            placeholder.markdown(response_text)
 
         st.session_state.sentiment = sentiment
         st.session_state.display_messages.append({"role": "assistant", "content": response_text})
