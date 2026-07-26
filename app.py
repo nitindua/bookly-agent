@@ -55,7 +55,7 @@ st.markdown("""
     background-color: white !important;
 }
 [data-testid="stExpander"] summary,
-[data-testid="stExpander"] summary p {
+[data-testid="stExpander"] summary * {
     font-weight: 700 !important;
     font-size: 1rem !important;
 }
