@@ -46,8 +46,7 @@ def log_tool_call(session_id: str, tool_name: str, tool_input: dict) -> None:
 
 
 def log_tool_result(session_id: str, tool_name: str, result: str) -> None:
-    truncated = result[:150] + "..." if len(result) > 150 else result
-    log_event(session_id, "TOOL_RESULT", f"{tool_name} -> {truncated}")
+    log_event(session_id, "TOOL_RESULT", f"{tool_name} -> {result}")
 
 
 def log_supervisor(session_id: str, verdict: str, sentiment: float, reason: str) -> None:

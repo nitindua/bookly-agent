@@ -1,3 +1,4 @@
+import json
 import re
 import streamlit as st
 import tools
@@ -49,12 +50,56 @@ def load_session_log(session_id: str) -> list:
     return events
 
 
-def _truncate(text: str, max_len: int = 60) -> str:
-    """Trim text with an ellipsis if it exceeds max_len."""
-    text = text.strip()
-    if len(text) <= max_len:
-        return text
-    return text[:max_len].rstrip() + "…"
+def _tool_status(json_str: str) -> str:
+    """Read a short status label out of a tool result JSON string."""
+    s = json_str.strip()
+    if '"escalate": true' in s or '"escalate":true' in s:
+        return "escalate"
+    if '"success": true' in s or '"success":true' in s:
+        return "success"
+    if '"success": false' in s or '"success":false' in s:
+        return "failed"
+    return "unknown"
+
+
+def _pretty_json(json_str: str) -> str:
+    """Try to pretty-print the JSON; fall back to the raw string."""
+    try:
+        return json.dumps(json.loads(json_str), indent=2)
+    except (json.JSONDecodeError, ValueError):
+        return json_str
+
+
+def format_event(event_type: str, details: str) -> tuple:
+    """
+    Return (display_body, expandable_or_none) for one event.
+    expandable is only used for TOOL_RESULT (full JSON).
+    """
+    if event_type == "AGENT_RESPONSE":
+        m = re.search(r"helped=(\w+)", details)
+        return (f"helped={m.group(1).lower()}" if m else details), None
+
+    if event_type == "TOOL_RESULT":
+        m = re.match(r"(\S+)\s*->\s*(.*)", details, re.DOTALL)
+        if not m:
+            return details, None
+        tool_name, json_str = m.groups()
+        return f"{tool_name} → {_tool_status(json_str)}", _pretty_json(json_str)
+
+    if event_type == "SUPERVISOR":
+        m = re.match(r"(APPROVED|REVISE|ESCALATE)\s*\(sentiment=([\d.]+)", details)
+        if not m:
+            return details, None
+        verdict, sentiment = m.groups()
+        if verdict == "REVISE":
+            return details, None
+        return f"{verdict} (sentiment={sentiment})", None
+
+    return details, None
+
+
+def _escape(text: str) -> str:
+    return text.replace("<", "&lt;").replace(">", "&gt;")
 
 
 def render_timeline(events: list) -> str:
@@ -63,12 +108,18 @@ def render_timeline(events: list) -> str:
     for e in events:
         cls = EVENT_CLASS.get(e["type"], "summary")
         time_str = e["time"].split(" ")[1] if " " in e["time"] else e["time"]
-        details = _truncate(e["details"]).replace("<", "&lt;").replace(">", "&gt;")
+        body, expandable = format_event(e["type"], e["details"])
+        body_html = _escape(body)
+        if expandable:
+            body_html += (
+                f'<details class="ev-expand"><summary></summary>'
+                f'<pre>{_escape(expandable)}</pre></details>'
+            )
         lines.append(
             f'<li class="ev-{cls}">'
             f'<span class="ev-time">{time_str}</span>'
             f'<span class="ev-type {cls}">{e["type"]}</span>'
-            f'<div class="ev-body">{details}</div>'
+            f'<div class="ev-body">{body_html}</div>'
             f'</li>'
         )
     lines.append('</ul>')
@@ -169,6 +220,31 @@ ul.timeline .ev-body {
     font-size: 11.5px;
     color: #545a67;
     margin-top: 2px;
+}
+ul.timeline details.ev-expand {
+    display: inline;
+    margin-left: 6px;
+}
+ul.timeline details.ev-expand summary {
+    display: inline;
+    list-style: none;
+    cursor: pointer;
+    color: #808495;
+    font-size: 10px;
+}
+ul.timeline details.ev-expand summary::-webkit-details-marker { display: none; }
+ul.timeline details.ev-expand summary::before { content: "▸ show"; }
+ul.timeline details.ev-expand[open] summary::before { content: "▾ hide"; }
+ul.timeline details.ev-expand pre {
+    display: block;
+    margin: 4px 0 0;
+    padding: 6px 8px;
+    background: #f8f8f8;
+    border-radius: 4px;
+    font-size: 10.5px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #262730;
 }
 </style>
 """, unsafe_allow_html=True)
