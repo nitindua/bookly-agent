@@ -157,6 +157,7 @@ with monitor_col:
 
     # Sentiment card
     with st.container(border=True):
+        st.markdown("**Customer sentiment**")
         if st.session_state.sentiment is not None:
             s = st.session_state.sentiment
             if s >= 0.7:
@@ -168,10 +169,10 @@ with monitor_col:
             else:
                 label = "Very frustrated"
 
-            st.metric("Customer sentiment", f"{s:.2f}", label)
+            st.metric("Customer sentiment", f"{s:.2f}", label, label_visibility="collapsed")
             st.progress(s)
         else:
-            st.metric("Customer sentiment", "—", "waiting for first message")
+            st.metric("Customer sentiment", "—", "waiting for first message", label_visibility="collapsed")
 
     # Handoff summary card
     with st.container(border=True):
@@ -189,13 +190,17 @@ with monitor_col:
 
     # AOP editor card
     with st.expander("Agent Operating Procedures", expanded=False):
-        st.text_area(
-            "AOP",
-            key="aop_editor",
-            height=500,
-            label_visibility="collapsed",
-        )
-        if st.button("Apply", use_container_width=True):
-            st.session_state.aop_prose = st.session_state.aop_editor
-            tools.RUNTIME_CONFIG["refund_threshold"] = extract_refund_threshold(st.session_state.aop_prose)
-            st.toast("AOP updated — applies on next turn")
+        tab_preview, tab_edit = st.tabs(["Preview", "Edit"])
+        with tab_preview:
+            st.markdown(st.session_state.aop_prose)
+        with tab_edit:
+            st.text_area(
+                "AOP",
+                key="aop_editor",
+                height=500,
+                label_visibility="collapsed",
+            )
+            if st.button("Apply", use_container_width=True):
+                st.session_state.aop_prose = st.session_state.aop_editor
+                tools.RUNTIME_CONFIG["refund_threshold"] = extract_refund_threshold(st.session_state.aop_prose)
+                st.toast("AOP updated — applies on next turn")
