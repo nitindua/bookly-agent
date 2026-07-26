@@ -184,17 +184,13 @@ with monitor_col:
 
     # AOP editor card
     with st.expander("Agent Operating Procedures", expanded=True):
-        tab_preview, tab_edit = st.tabs(["Preview", "Edit"])
-        with tab_preview:
-            st.markdown(st.session_state.aop_prose)
-        with tab_edit:
-            st.text_area(
-                "AOP",
-                key="aop_editor",
-                height=500,
-                label_visibility="collapsed",
-            )
-            if st.button("Apply", use_container_width=True):
-                st.session_state.aop_prose = st.session_state.aop_editor
-                tools.RUNTIME_CONFIG["refund_threshold"] = extract_refund_threshold(st.session_state.aop_prose)
-                st.toast("AOP updated — applies on next turn")
+        st.text_area(
+            "AOP",
+            key="aop_editor",
+            height=500,
+            label_visibility="collapsed",
+        )
+        if st.button("Apply", use_container_width=True):
+            st.session_state.aop_prose = st.session_state.aop_editor
+            tools.RUNTIME_CONFIG["refund_threshold"] = extract_refund_threshold(st.session_state.aop_prose)
+            st.toast("AOP updated — applies on next turn")
