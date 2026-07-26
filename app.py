@@ -54,6 +54,11 @@ st.markdown("""
 [data-testid="stTextArea"] textarea {
     background-color: white !important;
 }
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary p {
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -183,7 +188,7 @@ with monitor_col:
             st.caption("Appears if conversation is escalated.")
 
     # AOP editor card
-    with st.expander("Agent Operating Procedures", expanded=True):
+    with st.expander("Agent Operating Procedures", expanded=False):
         st.text_area(
             "AOP",
             key="aop_editor",
