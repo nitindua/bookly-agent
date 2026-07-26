@@ -1,6 +1,12 @@
 import json
 from data import ORDERS, REFUNDS
 
+# Values that can be overridden at runtime (e.g. from the AOP prose in the UI).
+# CLI mode uses these defaults; Streamlit populates them from aop.md on session start.
+RUNTIME_CONFIG = {
+    "refund_threshold": 100,
+}
+
 # Tool definitions for Claude API
 TOOLS = [
     {
@@ -73,12 +79,12 @@ def handle_request_refund(order_id: str, reason: str) -> dict:
 
     order = ORDERS[order_id]
 
-    # Check escalation condition: order value > 100
-    if order["order_value"] > 100:
+    threshold = RUNTIME_CONFIG["refund_threshold"]
+    if order["order_value"] > threshold:
         return {
             "success": False,
             "escalate": True,
-            "reason": "Order value exceeds $100. Requires human approval.",
+            "reason": f"Order value exceeds ${threshold}. Requires human approval.",
             "order_value": order["order_value"]
         }
 

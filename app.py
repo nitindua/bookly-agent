@@ -1,4 +1,6 @@
+import re
 import streamlit as st
+import tools
 from agent import (
     CONFIG,
     check_escalation_keywords,
@@ -12,6 +14,12 @@ from logger import (
     log_escalation,
     log_summary,
 )
+
+
+def extract_refund_threshold(prose: str) -> int:
+    """Pull the refund threshold value out of the AOP prose."""
+    match = re.search(r"refund exceeds \$(\d+)", prose, re.IGNORECASE)
+    return int(match.group(1)) if match else 100
 
 st.set_page_config(
     page_title="Bookly Support",
@@ -62,6 +70,9 @@ if "summary" not in st.session_state:
 if "aop_prose" not in st.session_state:
     with open("aop.md", "r") as f:
         st.session_state.aop_prose = f.read()
+    tools.RUNTIME_CONFIG["refund_threshold"] = extract_refund_threshold(st.session_state.aop_prose)
+if "aop_editor" not in st.session_state:
+    st.session_state.aop_editor = st.session_state.aop_prose
 if "pending_input" not in st.session_state:
     st.session_state.pending_input = None
 if "session_id" not in st.session_state:
@@ -165,3 +176,17 @@ with monitor_col:
             st.markdown(f"**Next:** {_safe(s.get('next', 'review manually'))}")
         else:
             st.caption("Appears if conversation is escalated.")
+
+    # AOP editor card
+    with st.container(border=True):
+        st.markdown("**Agent Operating Procedures**")
+        st.text_area(
+            "AOP",
+            key="aop_editor",
+            height=500,
+            label_visibility="collapsed",
+        )
+        if st.button("Apply", use_container_width=True):
+            st.session_state.aop_prose = st.session_state.aop_editor
+            tools.RUNTIME_CONFIG["refund_threshold"] = extract_refund_threshold(st.session_state.aop_prose)
+            st.toast("AOP updated — applies on next turn")
