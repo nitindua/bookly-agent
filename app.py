@@ -76,8 +76,13 @@ def format_event(event_type: str, details: str) -> tuple:
     expandable is only used for TOOL_RESULT (full JSON).
     """
     if event_type == "AGENT_RESPONSE":
-        m = re.search(r"helped=(\w+)", details)
-        return (f"helped={m.group(1).lower()}" if m else details), None
+        m = re.match(r'^"(.*)"\s*\(helped=\w+\)\s*$', details, re.DOTALL)
+        if m:
+            response = m.group(1)
+            if len(response) > 80:
+                response = response[:80].rstrip() + "…"
+            return f'"{response}"', None
+        return details, None
 
     if event_type == "TOOL_RESULT":
         m = re.match(r"(\S+)\s*->\s*(.*)", details, re.DOTALL)
