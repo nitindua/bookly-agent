@@ -7,15 +7,17 @@ load_dotenv(override=True)
 client = anthropic.Anthropic()
 MODEL = "claude-sonnet-5"
 
-SUMMARY_PROMPT = """You are generating a handoff summary for a human support agent taking over a conversation from an AI assistant.
+SUMMARY_PROMPT = """You are generating a handoff summary for a human support agent taking over a conversation from an AI agent.
 
-Produce a concise, factual summary the human agent can read in 10 seconds to understand what happened and continue from where the AI left off.
+Produce a concise, factual summary the human can read in 10 seconds to understand what happened and continue from where the AI agent left off.
+
+Refer to the automated agent as "the AI agent" (never just "AI" or "the AI").
 
 ## Output Format
 Return ONLY valid JSON with this shape:
 {
   "customer": "one short line - what the customer wanted",
-  "status": "one short line - what the AI did, current state, and why this is escalated",
+  "status": "one short line - what the AI agent did, current state, and why this is escalated",
   "next": "one short line - what the human should do next"
 }
 

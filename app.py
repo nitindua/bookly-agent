@@ -95,6 +95,9 @@ def format_event(event_type: str, details: str) -> tuple:
             return details, None
         return f"{verdict} (sentiment={sentiment})", None
 
+    if event_type == "HANDOFF_SUMMARY":
+        return "created", None
+
     return details, None
 
 
@@ -233,8 +236,8 @@ ul.timeline details.ev-expand summary {
     font-size: 10px;
 }
 ul.timeline details.ev-expand summary::-webkit-details-marker { display: none; }
-ul.timeline details.ev-expand summary::before { content: "▸ show"; }
-ul.timeline details.ev-expand[open] summary::before { content: "▾ hide"; }
+ul.timeline details.ev-expand summary::before { content: "▸"; }
+ul.timeline details.ev-expand[open] summary::before { content: "▾"; }
 ul.timeline details.ev-expand pre {
     display: block;
     margin: 4px 0 0;
