@@ -56,7 +56,7 @@ st.markdown("""
 }
 [data-testid="stExpander"] summary,
 [data-testid="stExpander"] summary * {
-    font-weight: 700 !important;
+    font-weight: 600 !important;
     font-size: 1rem !important;
 }
 </style>
