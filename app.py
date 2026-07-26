@@ -51,6 +51,9 @@ st.markdown("""
     border-left: 1px solid rgba(120, 120, 120, 0.2);
     padding-left: 1.5rem;
 }
+[data-testid="stTextArea"] textarea {
+    background-color: white !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -105,6 +108,7 @@ with chat_col:
                 st.session_state.summary = generate_escalation_summary(
                     st.session_state.messages,
                     "user requested a human agent",
+                    st.session_state.aop_prose,
                 )
                 log_summary(st.session_state.session_id, st.session_state.summary)
                 st.session_state.escalated = True
@@ -127,6 +131,7 @@ with chat_col:
             st.session_state.summary = generate_escalation_summary(
                 st.session_state.messages,
                 "supervisor or tool signaled escalation",
+                st.session_state.aop_prose,
             )
             log_summary(st.session_state.session_id, st.session_state.summary)
             st.session_state.escalated = True
@@ -178,8 +183,7 @@ with monitor_col:
             st.caption("Appears if conversation is escalated.")
 
     # AOP editor card
-    with st.container(border=True):
-        st.markdown("**Agent Operating Procedures**")
+    with st.expander("Agent Operating Procedures", expanded=True):
         st.text_area(
             "AOP",
             key="aop_editor",

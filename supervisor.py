@@ -65,6 +65,7 @@ def _format_conversation(messages: list) -> str:
 def review_response(
     conversation: list,
     agent_response: str,
+    aop_prose: str = "",
 ) -> dict:
     """
     Review the main agent's proposed response given the full recent conversation.
@@ -72,7 +73,14 @@ def review_response(
     """
     transcript = _format_conversation(conversation)
 
-    review_input = f"""## Conversation so far
+    aop_section = f"""## Current agent operating procedures
+The agent is running under the following procedures. Any policy the agent references (thresholds, escalation rules, restrictions) is REAL and comes from here — do not flag it as ungrounded.
+
+{aop_prose}
+
+""" if aop_prose else ""
+
+    review_input = f"""{aop_section}## Conversation so far
 {transcript}
 
 ## Agent's proposed response

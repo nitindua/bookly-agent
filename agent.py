@@ -204,7 +204,7 @@ def handle_turn(
 
         agent_helped = _tool_call_succeeded(tool_output)
 
-        verdict_data = review_response(messages, response_text)
+        verdict_data = review_response(messages, response_text, system_prompt)
         verdict = verdict_data["verdict"]
         sentiment = verdict_data.get("sentiment", 0.5)
         if session_id:

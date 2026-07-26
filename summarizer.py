@@ -51,7 +51,11 @@ def _format_conversation(messages: list) -> str:
     return "\n".join(lines)
 
 
-def generate_escalation_summary(messages: list, escalation_reason: str) -> dict:
+def generate_escalation_summary(
+    messages: list,
+    escalation_reason: str,
+    aop_prose: str = "",
+) -> dict:
     """Generate a handoff summary for a human agent taking over."""
     if not messages:
         return {
@@ -62,7 +66,14 @@ def generate_escalation_summary(messages: list, escalation_reason: str) -> dict:
 
     transcript = _format_conversation(messages)
 
-    review_input = f"""## Conversation transcript
+    aop_section = f"""## Current agent operating procedures
+The agent was running under the following procedures. Any policy the agent references (thresholds, escalation rules, restrictions) is REAL and comes from here — do not describe it as invented or fabricated.
+
+{aop_prose}
+
+""" if aop_prose else ""
+
+    review_input = f"""{aop_section}## Conversation transcript
 {transcript}
 
 ## Escalation reason
