@@ -21,6 +21,51 @@ def extract_refund_threshold(prose: str) -> int:
     match = re.search(r"refund exceeds \$(\d+)", prose, re.IGNORECASE)
     return int(match.group(1)) if match else 100
 
+
+EVENT_CLASS = {
+    "USER_MESSAGE": "user",
+    "TOOL_CALL": "tool",
+    "TOOL_RESULT": "tool",
+    "AGENT_RESPONSE": "agent",
+    "SUPERVISOR": "supervisor",
+    "ESCALATION": "escalate",
+    "HANDOFF_SUMMARY": "summary",
+}
+
+
+def load_session_log(session_id: str) -> list:
+    """Parse the session log file into event dicts."""
+    events = []
+    try:
+        with open(f"logs/session-{session_id}.log", "r") as f:
+            for line in f:
+                match = re.match(r"\[([\d\- :]+)\] ([A-Z_]+)(?::\s*(.*))?", line.strip())
+                if match:
+                    ts, event_type, details = match.groups()
+                    if event_type in EVENT_CLASS:
+                        events.append({"time": ts, "type": event_type, "details": details or ""})
+    except FileNotFoundError:
+        pass
+    return events
+
+
+def render_timeline(events: list) -> str:
+    """Render session events as an HTML timeline with colored rail and dots."""
+    lines = ['<ul class="timeline">']
+    for e in events:
+        cls = EVENT_CLASS.get(e["type"], "summary")
+        time_str = e["time"].split(" ")[1] if " " in e["time"] else e["time"]
+        details = e["details"].replace("<", "&lt;").replace(">", "&gt;")
+        lines.append(
+            f'<li class="ev-{cls}">'
+            f'<span class="ev-time">{time_str}</span>'
+            f'<span class="ev-type {cls}">{e["type"]}</span>'
+            f'<div class="ev-body">{details}</div>'
+            f'</li>'
+        )
+    lines.append('</ul>')
+    return "\n".join(lines)
+
 st.set_page_config(
     page_title="Bookly Support",
     layout="wide",
@@ -58,6 +103,64 @@ st.markdown("""
 [data-testid="stExpander"] summary * {
     font-weight: 600 !important;
     font-size: 1rem !important;
+}
+/* Session log timeline */
+ul.timeline {
+    position: relative;
+    padding-left: 22px;
+    margin: 0;
+    list-style: none;
+}
+ul.timeline::before {
+    content: "";
+    position: absolute;
+    left: 5px; top: 6px; bottom: 6px;
+    width: 1.5px;
+    background: #e6e9ef;
+}
+ul.timeline li {
+    position: relative;
+    padding: 4px 0 12px;
+}
+ul.timeline li::before {
+    content: "";
+    position: absolute;
+    left: -20px; top: 8px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #808495;
+}
+ul.timeline li.ev-user::before       { border-color: #ff4b4b; }
+ul.timeline li.ev-tool::before       { border-color: #7c3aed; }
+ul.timeline li.ev-agent::before      { border-color: #0068c9; }
+ul.timeline li.ev-supervisor::before { border-color: #26a561; }
+ul.timeline li.ev-escalate::before   { border-color: #a02020; background: #a02020; }
+ul.timeline li.ev-summary::before    { border-color: #808495; }
+ul.timeline .ev-time {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: #808495;
+    margin-right: 8px;
+}
+ul.timeline .ev-type {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+ul.timeline .ev-type.user       { color: #ff4b4b; }
+ul.timeline .ev-type.tool       { color: #7c3aed; }
+ul.timeline .ev-type.agent      { color: #0068c9; }
+ul.timeline .ev-type.supervisor { color: #26a561; }
+ul.timeline .ev-type.escalate   { color: #a02020; }
+ul.timeline .ev-type.summary    { color: #808495; }
+ul.timeline .ev-body {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: #545a67;
+    margin-top: 2px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -204,3 +307,11 @@ with monitor_col:
                 st.session_state.aop_prose = st.session_state.aop_editor
                 tools.RUNTIME_CONFIG["refund_threshold"] = extract_refund_threshold(st.session_state.aop_prose)
                 st.toast("AOP updated — applies on next turn")
+
+    # Session log card
+    with st.expander("Session log", expanded=False):
+        events = load_session_log(st.session_state.session_id)
+        if not events:
+            st.caption("Log starts populating after your first message.")
+        else:
+            st.markdown(render_timeline(events), unsafe_allow_html=True)
