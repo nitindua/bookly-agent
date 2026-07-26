@@ -1,7 +1,6 @@
 import streamlit as st
 from agent import (
     CONFIG,
-    build_system_prompt,
     check_escalation_keywords,
     handle_turn,
 )
@@ -60,8 +59,9 @@ if "escalated" not in st.session_state:
     st.session_state.escalated = False
 if "summary" not in st.session_state:
     st.session_state.summary = None
-if "system_prompt" not in st.session_state:
-    st.session_state.system_prompt = build_system_prompt(CONFIG)
+if "aop_prose" not in st.session_state:
+    with open("aop.md", "r") as f:
+        st.session_state.aop_prose = f.read()
 if "pending_input" not in st.session_state:
     st.session_state.pending_input = None
 if "session_id" not in st.session_state:
@@ -75,7 +75,7 @@ with chat_col:
 
     for msg in st.session_state.display_messages:
         with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+            st.markdown(msg["content"].replace("$", "\\$"))
 
     if st.session_state.pending_input:
         user_input = st.session_state.pending_input
@@ -102,11 +102,11 @@ with chat_col:
             response_text, verdict, sentiment, _ = handle_turn(
                 user_input,
                 st.session_state.messages,
-                st.session_state.system_prompt,
+                st.session_state.aop_prose,
                 st.session_state.session_id,
             )
 
-            placeholder.markdown(response_text)
+            placeholder.markdown(response_text.replace("$", "\\$"))
 
         st.session_state.sentiment = sentiment
         st.session_state.display_messages.append({"role": "assistant", "content": response_text})
