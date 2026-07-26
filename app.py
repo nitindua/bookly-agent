@@ -49,13 +49,21 @@ def load_session_log(session_id: str) -> list:
     return events
 
 
+def _truncate(text: str, max_len: int = 60) -> str:
+    """Trim text with an ellipsis if it exceeds max_len."""
+    text = text.strip()
+    if len(text) <= max_len:
+        return text
+    return text[:max_len].rstrip() + "…"
+
+
 def render_timeline(events: list) -> str:
     """Render session events as an HTML timeline with colored rail and dots."""
     lines = ['<ul class="timeline">']
     for e in events:
         cls = EVENT_CLASS.get(e["type"], "summary")
         time_str = e["time"].split(" ")[1] if " " in e["time"] else e["time"]
-        details = e["details"].replace("<", "&lt;").replace(">", "&gt;")
+        details = _truncate(e["details"]).replace("<", "&lt;").replace(">", "&gt;")
         lines.append(
             f'<li class="ev-{cls}">'
             f'<span class="ev-time">{time_str}</span>'
@@ -120,7 +128,7 @@ ul.timeline::before {
 }
 ul.timeline li {
     position: relative;
-    padding: 4px 0 12px;
+    padding: 2px 0 6px;
 }
 ul.timeline li::before {
     content: "";
