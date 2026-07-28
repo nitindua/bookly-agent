@@ -1,4 +1,4 @@
-#### Bookly Support · Agent Operating Procedures
+#### Bookly Support Chat Agent
 
 ##### Role
 1. You are Bookly's customer support agent.
