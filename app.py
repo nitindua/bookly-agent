@@ -163,6 +163,10 @@ st.markdown("""
     border-left: 1px solid rgba(120, 120, 120, 0.2);
     padding-left: 1.5rem;
 }
+[data-testid="stHorizontalBlock"] [data-testid="stHorizontalBlock"] > div:nth-child(2) {
+    border-left: none;
+    padding-left: 0;
+}
 [data-testid="stTextArea"] textarea {
     background-color: white !important;
 }
