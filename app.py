@@ -285,7 +285,15 @@ if "session_id" not in st.session_state:
 chat_col, monitor_col = st.columns([2, 1], gap="large")
 
 with chat_col:
-    st.subheader("Bookly Support")
+    header_col, reset_col = st.columns([4, 1])
+    with header_col:
+        st.subheader("Bookly Support")
+    with reset_col:
+        if st.button("↻ Reset", use_container_width=True):
+            for key in ["messages", "display_messages", "sentiment", "escalated", "summary", "pending_input", "session_id"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
 
     for msg in st.session_state.display_messages:
         with st.chat_message(msg["role"]):
