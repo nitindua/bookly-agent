@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import streamlit as st
 import tools
@@ -285,6 +286,8 @@ if "pending_input" not in st.session_state:
 if "session_id" not in st.session_state:
     st.session_state.session_id = new_session_id()
     log_session_start(st.session_state.session_id)
+if "ticket_number" not in st.session_state:
+    st.session_state.ticket_number = random.randint(1000, 9999)
 
 chat_col, monitor_col = st.columns([2, 1], gap="large")
 
@@ -392,6 +395,10 @@ with monitor_col:
             st.markdown(f"**Customer:** {_safe(s.get('customer', 'unknown'))}")
             st.markdown(f"**Status:** {_safe(s.get('status', 'unknown'))}")
             st.markdown(f"**Next:** {_safe(s.get('next', 'review manually'))}")
+            st.markdown(
+                f'<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #f0f2f6; font-size: 12.5px; color: #26a561;">Ticket <strong>#{st.session_state.ticket_number}</strong> created in Zendesk</div>',
+                unsafe_allow_html=True,
+            )
         else:
             st.caption("Appears if conversation is escalated.")
 
